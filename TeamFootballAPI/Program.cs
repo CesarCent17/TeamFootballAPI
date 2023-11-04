@@ -1,19 +1,16 @@
 using Microsoft.AspNetCore.SignalR;
 using TeamFootballAPI.Hubs;
+using TeamFootballAPI.Models;
+using TeamFootballAPI.Models.Dto;
 using TeamFootballAPI.Services;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddSingleton<TeamService>();
 builder.Services.AddSignalR();
-//builder.Services.AddTransient<IHubContext<TeamHub>>();
-//builder.Services.AddTransient<IHubContext<TeamHub>, HubContext<TeamHub>>();
-
-
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -46,6 +43,26 @@ app.UseAuthorization();
 
 app.MapHub<TeamHub>("/teamHub");
 
-app.MapControllers();
+app.MapGet("/api/team", (TeamService teamService) => Results.Ok(teamService.Teams.ToList()));
+app.MapGet("/api/team/{id}", (TeamService teamService, Guid id) =>
+{
+    var team = teamService.Teams.FirstOrDefault(t => t.Id == id);
+    return team != null ? Results.Ok(team) : Results.NotFound();
+});
+
+app.MapPost("/api/team", async (TeamService teamService, IHubContext<TeamHub> hubContext, TeamCreateDto team) =>
+{
+    var teamNew = new Team
+    {
+        Id = Guid.NewGuid(),
+        Name = team.Name,
+        City = team.City,
+        YearFounded = team.YearFounded,
+    };
+    teamService.Teams.Add(teamNew);
+    await hubContext.Clients.All.SendAsync("ReceiveTeam", teamNew);
+    //return Results.CreatedAtAction("GetTeamById", new { id = teamNew.Id }, teamNew);
+    return Results.Ok();
+});
 
 app.Run();
