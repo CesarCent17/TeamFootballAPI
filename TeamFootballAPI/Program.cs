@@ -4,6 +4,7 @@ using TeamFootballAPI.Models;
 using TeamFootballAPI.Models.Dto;
 using TeamFootballAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using AutoMapper;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.Services.AddSignalR();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAutoMapper(typeof(Program));
 
 builder.Services.AddCors(options =>
 {
@@ -50,15 +52,9 @@ app.MapGet("/api/team/{id}", (TeamService teamService, Guid id) =>
     return team != null ? Results.Ok(team) : Results.NotFound();
 });
 
-app.MapPost("/api/team", async (TeamService teamService, IHubContext<TeamHub> hubContext, TeamCreateDto team) =>
+app.MapPost("/api/team", async (TeamService teamService, IHubContext<TeamHub> hubContext, IMapper mapper, TeamCreateDto team) =>
 {
-    var teamNew = new Team
-    {
-        Id = Guid.NewGuid(),
-        Name = team.Name,
-        City = team.City,
-        YearFounded = team.YearFounded,
-    };
+    var teamNew = mapper.Map<Team>(team);
     teamService.Teams.Add(teamNew);
     await hubContext.Clients.All.SendAsync("ReceiveTeam", teamNew);
     //return Results.CreatedAtAction("GetTeamById", new { id = teamNew.Id }, teamNew);
